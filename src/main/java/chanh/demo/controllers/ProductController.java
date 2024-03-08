@@ -3,6 +3,8 @@ package chanh.demo.controllers;
 import chanh.demo.models.Product;
 import chanh.demo.repositories.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.HashOperations;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.*;
 import redis.clients.jedis.Jedis;
 
@@ -14,6 +16,19 @@ public class ProductController {
     @Autowired
     private ProductRepository productRepository;
     private Jedis jedis = new Jedis();
+
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
+
+    @PostMapping("/products")
+    private Product addAllProduct(@RequestBody Product product) {
+        product = productRepository.save(product); // Save product to database
+        HashOperations<String, String, String> hashOps = redisTemplate.opsForHash();
+        hashOps.put("products", String.valueOf(product.getId()), product.getName()); // Store name
+        hashOps.put("quantities", String.valueOf(product.getId()), String.valueOf(product.getQuantity())); // Store quantity
+        System.out.println("saved in cache");
+        return product;
+    }
 
     @GetMapping("/products")
     private List<Product> getList() {
@@ -52,12 +67,12 @@ public class ProductController {
         System.out.println("Delete in cache");
     }
 
-    @PostMapping("/products")
-    private Product addProduct(@RequestBody Product product) {
-        jedis.set(String.valueOf(product.getId()), product.getName());
-        System.out.println("saved in cache");
-        return productRepository.save(product);
-    }
+//    @PostMapping("/products")
+//    private Product addProduct(@RequestBody Product product) {
+//        jedis.set(String.valueOf(product.getId()), product.getName());
+//        System.out.println("saved in cache");
+//        return productRepository.save(product);
+//    }
 
     @PutMapping("products/{id}")
     public Product updateProduct(@PathVariable(value = "id") int id, @RequestBody Product product) {
